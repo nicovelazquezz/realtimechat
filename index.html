@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat en Tiempo Real</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+        #chat-container { max-width: 800px; margin: 0 auto; }
+        #mensajes { 
+            height: 400px; 
+            overflow-y: auto; 
+            border: 1px solid #ccc; 
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        #usuarios {
+            width: 200px;
+            float: right;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .mensaje { margin-bottom: 10px; }
+        .sistema { color: #666; font-style: italic; }
+        #escribiendo { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="usuarios">
+            <h3>Usuarios conectados</h3>
+            <ul id="lista-usuarios"></ul>
+        </div>
+        <div id="mensajes"></div>
+        <div id="escribiendo"></div>
+        <input type="text" id="mensaje" placeholder="Escribe un mensaje...">
+        <button onclick="enviarMensaje()">Enviar</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let nombre = prompt('Ingresa tu nombre:');
+        while (!nombre) {
+            nombre = prompt('Por favor, ingresa tu nombre:');
+        }
+
+        // Registrar usuario
+        socket.emit('registrar usuario', nombre);
+
+        // Manejar mensajes recibidos
+        socket.on('mensaje', (data) => {
+            const mensajesDiv = document.getElementById('mensajes');
+            const mensajeElement = document.createElement('div');
+            mensajeElement.className = 'mensaje' + (data.usuario === 'Sistema' ? ' sistema' : '');
+            mensajeElement.textContent = `${data.usuario}: ${data.texto}`;
+            mensajesDiv.appendChild(mensajeElement);
+            mensajesDiv.scrollTop = mensajesDiv.scrollHeight;
+        });
+
+        // Actualizar lista de usuarios
+        socket.on('usuarios conectados', (usuarios) => {
+            const listaUsuarios = document.getElementById('lista-usuarios');
+            listaUsuarios.innerHTML = usuarios
+                .map(usuario => `<li>${usuario}</li>`)
+                .join('');
+        });
+
+        // Manejar usuario escribiendo
+        let timeoutId;
+        document.getElementById('mensaje').addEventListener('input', () => {
+            socket.emit('escribiendo');
+        });
+
+        socket.on('usuario escribiendo', (usuario) => {
+            const escribiendoDiv = document.getElementById('escribiendo');
+            escribiendoDiv.textContent = `${usuario} está escribiendo...`;
+            
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                escribiendoDiv.textContent = '';
+            }, 1000);
+        });
+
+        // Enviar mensaje
+        function enviarMensaje() {
+            const mensajeInput = document.getElementById('mensaje');
+            const mensaje = mensajeInput.value.trim();
+            
+            if (mensaje) {
+                socket.emit('enviar mensaje', mensaje);
+                mensajeInput.value = '';
+            }
+        }
+
+        // Enviar mensaje con Enter
+        document.getElementById('mensaje').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                enviarMensaje();
+            }
+        });
+    </script>
+</body>
+</html>
